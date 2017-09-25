@@ -19,7 +19,7 @@ The red icons are the ones I've commented or approved.
 ```bash
 git clone https://github.com/mRoca/chrome-extension-gitlab-mr-review.git
 ```
-Then go to `chrome://extensions/` , use the `Load unpacked extension...` button and select the cloned folder.
+Then go to `chrome://extensions/` , activate the `Developer mode`, use the `Load unpacked extension...` button and select the cloned folder.
 
 ### Update
 
