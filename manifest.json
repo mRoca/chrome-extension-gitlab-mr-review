@@ -1,0 +1,22 @@
+{
+    "manifest_version": 2,
+
+    "name": "Gitlab merge requests review",
+    "description": "This extension allows the user to see the Gitlab merge requests he has to review",
+    "version": "0.1",
+    "icons": { "68": "icon.png" },
+
+    "browser_action": {
+        "default_icon": "icon.png"
+    },
+    "content_scripts": [{
+        "matches": ["*://*/*merge_requests*"],
+        "js": ["contentscript.js"],
+        "run_at": "document_idle"
+    }],
+    "web_accessible_resources" : ["windowvar.js"],
+    "permissions": [
+        "activeTab",
+        "storage"
+    ]
+}
