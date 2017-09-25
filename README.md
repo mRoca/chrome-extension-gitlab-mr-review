@@ -14,10 +14,22 @@ The red icons are the ones I've commented or approved.
 
 ## Usage
 
+### Install
+
 ```bash
-git clone git@github.com:mRoca/chrome-extension-gitlab-mr-review.git
+git clone https://github.com/mRoca/chrome-extension-gitlab-mr-review.git
 ```
 Then go to `chrome://extensions/` , use the `Load unpacked extension...` button and select the cloned folder.
+
+### Update
+
+Go to the cloned folder, and run
+
+```bash
+git pull --rebase
+```
+
+Then go to `chrome://extensions/` and use the `Reload` button of the `Gitlab merge requests review` extension.
 
 ## Tech
 
