@@ -107,7 +107,7 @@ function identifyMr(id, status) {
 }
 
 function getJson(url) {
-    return fetch(window.gon.gitlab_url + url, {
+    return fetch(window.gon.gitlab_url.replace('http://','https://') + url, {
         method: 'GET',
         credentials: 'include'
     }).then(function(res) {
