@@ -69,7 +69,7 @@ async function parseMrs(mrs) {
     id = mrs[0].projectId || mrs[0].groupId;
     if (type === 'groups') {
         // get the project id of each mr by getting the list of opened mrs in their group id
-        await getJson(`/api/v4/${type}/${id}/merge_requests?state=opened&view=simple`).then((res) => {
+        await getJson(`/api/v4/${type}/${id}/merge_requests?state=opened&view=simple&per_page=500`).then((res) => {
             mrs = mrs.map(mr => {
                 const moreInfos = res.find(re => re.id === mr.id)
                 return { ...mr, projectId: moreInfos.project_id };
@@ -78,6 +78,7 @@ async function parseMrs(mrs) {
     }
 
     // check which of the opened mr the connected gitlab used as approved with a thumbsup
+    const mrsList = mrs.reduce(r)
     await getJson(`/api/v4/${type}/${id}/merge_requests?my_reaction_emoji=thumbsup&state=opened&view=simple`).then((validatedOpenedMrs) => {
         mrs = mrs.map(mr => {
             const isValidated = validatedOpenedMrs.some(m => m.id === mr.id)
