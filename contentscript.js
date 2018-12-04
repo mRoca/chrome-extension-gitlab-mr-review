@@ -78,7 +78,6 @@ async function parseMrs(mrs) {
     }
 
     // check which of the opened mr the connected gitlab used as approved with a thumbsup
-    const mrsList = mrs.reduce(r)
     await getJson(`/api/v4/${type}/${id}/merge_requests?my_reaction_emoji=thumbsup&state=opened&view=simple`).then((validatedOpenedMrs) => {
         mrs = mrs.map(mr => {
             const isValidated = validatedOpenedMrs.some(m => m.id === mr.id)
