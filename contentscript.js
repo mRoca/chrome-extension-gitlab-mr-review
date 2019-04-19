@@ -33,14 +33,26 @@ function boot() {
     parseMrLists();
 }
 
+function findProjectId() {
+    const projectResult = document.querySelectorAll('[data-project-id]')[0];
+    return projectResult && projectResult.getAttribute('data-project-id') || null;
+}
+
+function findGroupId() {
+    const groupResult = document.querySelectorAll('[data-group-id]')[0];
+    return groupResult && groupResult.getAttribute('data-group-id') || null;
+}
+
 function parseMrLists() {
     var lists = document.getElementsByClassName('mr-list');
     var mrs = [];
     for (var i = 0; i < lists.length; i++) {
         for (var j = 0; j < lists[i].children.length; j++) {
             mrs.push({
-                'id': parseInt(lists[i].children[j].getAttribute('data-id')),
-                'iid': parseInt(lists[i].children[j].getElementsByClassName('issuable-reference')[0].innerText.replace('!', ''))
+                id: parseInt(lists[i].children[j].getAttribute('data-id')),
+                iid: parseInt(lists[i].children[j].getElementsByClassName('issuable-reference')[0].innerText.split('!')[1]),
+                projectId: findProjectId(),
+                groupId: findGroupId(),
             });
         }
     }
@@ -48,41 +60,51 @@ function parseMrLists() {
     parseMrs(mrs);
 }
 
-function parseMrs(mrs) {
+async function parseMrs(mrs) {
     if (!mrs.length) {
         return
     }
 
-    const projectId = document.querySelectorAll('[data-project-id]')[0].getAttribute('data-project-id'); // No sure it will work for future versions
-    const baseProjectUrl = '/api/v4/projects/' + projectId + '/merge_requests';
+    const type = mrs[0].projectId ? 'projects' : 'groups';
+    id = mrs[0].projectId || mrs[0].groupId;
+    if (type === 'groups') {
+        // get the project id of each mr by getting the list of opened mrs in their group id
+        await getJson(`/api/v4/${type}/${id}/merge_requests?state=opened&view=simple&per_page=500`).then((res) => {
+            mrs = mrs.map(mr => {
+                const moreInfos = res.find(re => re.id === mr.id)
+                return { ...mr, projectId: moreInfos.project_id };
+            })
+        })
+    }
 
-    for (var i = 0; i < mrs.length; i++) {
-        const mrIid = mrs[i].iid;
-        const mrId = mrs[i].id;
-        const approvedCacheKey = window.gon.current_username + '_approved_' + mrs[i].iid;
-        const commentedCacheKey = window.gon.current_username + '_commented_' + mrs[i].iid;
+    // check which of the opened mr the connected gitlab used as approved with a thumbsup
+    await getJson(`/api/v4/${type}/${id}/merge_requests?my_reaction_emoji=thumbsup&state=opened&view=simple`).then((validatedOpenedMrs) => {
+        mrs = mrs.map(mr => {
+            const isValidated = validatedOpenedMrs.some(m => m.id === mr.id)
+            return { ...mr, isValidated };
+        })
+    })
 
-        chrome.storage.local.get([approvedCacheKey, commentedCacheKey], function(cachedValues) {
+    mrs.forEach(mr => {
+        const mrIid = mr.iid;
+        const mrId = mr.id;
+        const approvedCacheKey = window.gon.current_username + '_approved_' + mrIid;
+        const commentedCacheKey = window.gon.current_username + '_commented_' + mrIid;
+        const baseProjectUrl = '/api/v4/projects/' + mr.projectId + '/merge_requests';
+
+        chrome.storage.local.get([approvedCacheKey, commentedCacheKey], function (cachedValues) {
             if (cachedValues[approvedCacheKey]) {
                 identifyMr(mrId, 'approved');
-            } else {
-                getJson(baseProjectUrl + '/' + mrIid + '/award_emoji').then(function(res) {
-                    const userHasApproved = res.filter(function(emojiRes) {
-                        return emojiRes.name === 'thumbsup' && emojiRes.user.username === window.gon.current_username;
-                    }).length > 0;
-
-                    if (userHasApproved) {
-                        identifyMr(mrId, 'approved');
-                        setLocalCacheValue(approvedCacheKey, true);
-                    }
-                });
+            } else if (mr.isValidated) {
+                identifyMr(mrId, 'approved');
+                setLocalCacheValue(approvedCacheKey, true);
             }
 
             if (cachedValues[commentedCacheKey]) {
                 identifyMr(mrId, 'commented');
             } else {
-                getJson(baseProjectUrl + '/' + mrIid + '/notes').then(function(res) {
-                    const userHasCommented = res.filter(function(comment) {
+                getJson(baseProjectUrl + '/' + mrIid + '/notes').then(function (res) {
+                    const userHasCommented = res.filter(function (comment) {
                         return comment.author.username === window.gon.current_username;
                     }).length > 0;
 
@@ -93,8 +115,7 @@ function parseMrs(mrs) {
                 });
             }
         });
-    }
-
+    })
 }
 
 function identifyMr(id, status) {
@@ -107,7 +128,7 @@ function identifyMr(id, status) {
 }
 
 function getJson(url) {
-    return fetch(window.gon.gitlab_url + url, {
+    return fetch(window.gon.gitlab_url.replace('http://','https://') + url, {
         method: 'GET',
         credentials: 'include'
     }).then(function(res) {
